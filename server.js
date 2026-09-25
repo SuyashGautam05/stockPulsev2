@@ -1,3 +1,4 @@
+import './lib/env.js';
 import express from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
