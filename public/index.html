@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>StockPulse — live stock outlook from fundamentals</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#E9EFEC;--panel:#FBFDFC;--ink:#17302C;--muted:#566B67;--line:#CFDAD6;--field:#F1F5F3;--up:#0E7A67;--mid:#B7800B;--down:#B23A2C;--rev:#6F8581;--focus:#2F6FDE;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0F1A18;--panel:#15231F;--ink:#E3ECE9;--muted:#93A6A1;--line:#2A3B37;--field:#1B2C28;--up:#3CC2A5;--mid:#E3AE3B;--down:#EF7263;--rev:#8FA6A1;--focus:#7AA7FF;color-scheme:dark}}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 20px 48px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px}
+h1{font-family:"Newsreader",Georgia,serif;font-weight:600;font-size:clamp(26px,3.6vw,36px);margin:0;line-height:1}
+.tabs{display:flex;gap:4px;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:3px}
+.tabs button{border:0;background:transparent;padding:7px 14px;border-radius:7px}
+.tabs button[aria-selected="true"]{background:var(--panel);box-shadow:0 1px 2px rgba(0,0,0,.08);font-weight:600}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--ink);color:var(--panel);border-color:var(--ink);font-weight:600}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.err{color:var(--down)}
+[hidden]{display:none!important}
+
+/* search */
+.search{position:relative;max-width:560px;margin-bottom:20px}
+.search input{width:100%;padding:12px 14px;font-size:16px;border-radius:10px}
+.sugg{position:absolute;z-index:5;left:0;right:0;top:calc(100% + 4px);background:var(--panel);border:1px solid var(--line);border-radius:10px;list-style:none;margin:0;padding:4px;max-height:340px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.sugg li{padding:8px 10px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+.sugg li[aria-selected="true"],.sugg li:hover{background:var(--field)}
+.sugg b{font-weight:600}
+
+/* detail */
+.dgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:20px;align-items:start}
+@media (max-width:900px){.dgrid{grid-template-columns:1fr}}
+.qhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px;margin-bottom:16px}
+.qname{font-family:"Newsreader",Georgia,serif;font-size:28px;font-weight:600;line-height:1.1;margin:0}
+.qprice{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;transition:color .6s}
+.chg{font-weight:600;font-variant-numeric:tabular-nums}
+.pos{color:var(--up)} .neg{color:var(--down)}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--up);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.dial{width:100%;max-width:280px;display:block;margin:0 auto}
+.dial .arc{transition:stroke-dasharray .7s cubic-bezier(.2,.8,.2,1)}
+.dial .needle{transition:transform .7s cubic-bezier(.2,.8,.2,1);transform-origin:110px 112px}
+.score{font-family:"Newsreader",Georgia,serif;font-size:54px;font-weight:600;line-height:1;margin-top:-56px;text-align:center;font-variant-numeric:tabular-nums}
+.score small{font-size:18px;color:var(--muted)}
+.verdict{font-family:"Newsreader",Georgia,serif;font-size:24px;font-weight:600;text-align:center;margin:12px 0 2px}
+.outlook{text-align:center;color:var(--muted);max-width:42ch;margin:0 auto}
+h2{font-size:15px;font-weight:600;margin:22px 0 10px}
+.factor{display:grid;grid-template-columns:110px 1fr 34px;gap:2px 10px;align-items:center;margin-bottom:10px}
+.factor .bar{height:8px;background:var(--field);border-radius:4px;overflow:hidden}
+.factor .bar i{display:block;height:100%;border-radius:4px}
+.factor .val{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.factor .dt{grid-column:2/4;font-size:12px;color:var(--muted)}
+.reasons{list-style:none;padding:0;margin:0}
+.reasons li{position:relative;padding:4px 0 4px 20px;font-size:14px}
+.reasons li::before{content:"";position:absolute;left:2px;top:11px;width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.reasons li.good::before{background:var(--up)} .reasons li.bad::before{background:var(--down)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.kv div{background:var(--field);border-radius:10px;padding:10px 12px}
+.kv span{display:block;font-size:12px;color:var(--muted)}
+.kv b{font-variant-numeric:tabular-nums}
+svg.chart{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:4px}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.empty{padding:48px 12px;text-align:center;color:var(--muted)}
+
+/* scanner */
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
+.controls label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.controls textarea{width:min(420px,100%);min-height:40px}
+.chk{flex-direction:row!important;align-items:center;gap:6px!important}
+.prog{height:6px;background:var(--field);border-radius:3px;overflow:hidden;margin:6px 0}
+.prog i{display:block;height:100%;width:0;background:var(--up);transition:width .3s}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0 10px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:900px;font-variant-numeric:tabular-nums}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;position:sticky;top:0;background:var(--panel)}
+th:first-child,td:first-child{text-align:left}
+th[data-dir="asc"]::after{content:" ▲"} th[data-dir="desc"]::after{content:" ▼"}
+tbody tr{cursor:pointer} tbody tr:hover{background:var(--field)}
+td .nm{display:block;font-size:12px;color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis}
+.pill{display:inline-block;min-width:36px;text-align:center;padding:2px 8px;border-radius:20px;font-weight:700;color:#fff}
+footer{color:var(--muted);font-size:12px;margin-top:28px;max-width:90ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>StockPulse</h1>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabOne" aria-selected="true">Analyze a stock</button>
+      <button role="tab" id="tabScan" aria-selected="false">Scan the market</button>
+    </div>
+  </header>
+
+  <!-- ============ Single stock ============ -->
+  <section id="viewOne">
+    <div class="search">
+      <input id="q" placeholder="Search any listed company — Reliance, TCS, Apple, TSLA…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="sugg">
+      <ul class="sugg" id="sugg" role="listbox" hidden></ul>
+    </div>
+    <div id="detail"><div class="panel empty">Search a company to see its live price, financial health and outlook.</div></div>
+  </section>
+
+  <!-- ============ Scanner ============ -->
+  <section id="viewScan" hidden>
+    <div class="panel">
+      <div class="controls">
+        <label>Market<select id="uni"></select></label>
+        <label id="customBox" hidden>Symbols (comma separated, e.g. TCS.NS, INFY.NS, AAPL)<textarea id="custom"></textarea></label>
+        <label class="chk"><input type="checkbox" id="refresh"> Re-fetch cached stocks</label>
+        <button class="primary" id="start">Start scan</button>
+        <button id="stop" disabled>Stop</button>
+      </div>
+      <div class="prog"><i id="progBar"></i></div>
+      <div class="small muted" id="progText">Pick a market and start the scan. Results stream in live and are cached for 12 hours.</div>
+    </div>
+
+    <div class="filters">
+      <input id="fText" placeholder="Filter by name or symbol">
+      <label class="small muted">Min score <input id="fMin" type="range" min="0" max="100" value="0" style="vertical-align:middle"> <b id="fMinV">0</b></label>
+      <select id="fLabel"><option value="">All outlooks</option><option>Strong</option><option>Stable</option><option>Mixed</option><option>Weak</option><option>High risk</option></select>
+      <select id="fSector"><option value="">All sectors</option></select>
+      <button id="csv">Export CSV</button>
+      <span class="small muted" id="count"></span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th data-k="symbol">Stock</th><th data-k="price">Price</th><th data-k="changePct">Today</th><th data-k="score" data-dir="desc">Score</th>
+          <th data-k="label">Outlook</th><th data-k="pe">P/E</th><th data-k="de">Debt/Eq</th><th data-k="revCagr">Rev growth</th>
+          <th data-k="r1y">1Y return</th><th data-k="upside">Analyst upside</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>Data: Yahoo Finance (prices may be delayed up to 15 min depending on exchange). The score is a rules-based read of fundamentals and price trend, not a guarantee — markets also react to news, rates and sentiment that no model sees in advance. Educational use only, not investment advice.</footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const api=async u=>{const r=await fetch(u);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ok=x=>x!=null&&isFinite(x);
+const tone=s=>s==null?'var(--muted)':s>=60?'var(--up)':s>=45?'var(--mid)':'var(--down)';
+const pct=(x,d=1)=>ok(x)?(x>=0?'+':'')+x.toFixed(d)+'%':'–';
+const n2=(x,d=1)=>ok(x)?x.toFixed(d):'–';
+function money(x,cur,compact){
+  if(!ok(x))return'–';
+  const loc=cur==='INR'?'en-IN':'en-US';
+  try{return new Intl.NumberFormat(loc,{style:'currency',currency:cur||'USD',notation:compact?'compact':'standard',maximumFractionDigits:compact?1:2}).format(x)}
+  catch{return x.toLocaleString(loc,{maximumFractionDigits:2})}
+}
+
+/* ---------------- tabs & routing ---------------- */
+function show(tab){
+  const one=tab==='one';
+  $('viewOne').hidden=!one;$('viewScan').hidden=one;
+  $('tabOne').setAttribute('aria-selected',one);$('tabScan').setAttribute('aria-selected',!one);
+}
+$('tabOne').onclick=()=>show('one');
+$('tabScan').onclick=()=>{show('scan');if(!uniLoaded)initScan()};
+window.addEventListener('hashchange',route);
+function route(){const m=location.hash.match(/stock=([^&]+)/);if(m){show('one');openStock(decodeURIComponent(m[1]))}}
+
+/* ---------------- search ---------------- */
+let sTimer,sItems=[],sIdx=-1,sCtl;
+$('q').addEventListener('input',()=>{clearTimeout(sTimer);sTimer=setTimeout(doSearch,250)});
+$('q').addEventListener('keydown',e=>{
+  const list=$('sugg');
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!sItems.length)return;sIdx=(sIdx+(e.key==='ArrowDown'?1:-1)+sItems.length)%sItems.length;paintSugg()}
+  else if(e.key==='Enter'){e.preventDefault();const it=sItems[sIdx>=0?sIdx:0];pick(it?it.symbol:$('q').value.trim())}
+  else if(e.key==='Escape'){list.hidden=true}
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.search'))$('sugg').hidden=true});
+async function doSearch(){
+  const q=$('q').value.trim();if(!q){$('sugg').hidden=true;return}
+  if(sCtl)sCtl.abort();sCtl=new AbortController();
+  try{const r=await fetch('/api/search?q='+encodeURIComponent(q),{signal:sCtl.signal});sItems=await r.json();if(!Array.isArray(sItems))sItems=[];sIdx=-1;paintSugg()}catch(e){}
+}
+function paintSugg(){
+  const ul=$('sugg');
+  if(!sItems.length){ul.innerHTML='<li class="muted">No match. Press Enter to try the symbol directly (e.g. TCS.NS).</li>';ul.hidden=false;return}
+  ul.innerHTML=sItems.map((s,i)=>`<li role="option" data-s="${esc(s.symbol)}" aria-selected="${i===sIdx}"><span><b>${esc(s.symbol)}</b> ${esc(s.name)}</span><span class="muted small">${esc(s.exchange)}</span></li>`).join('');
+  ul.hidden=false;$('q').setAttribute('aria-expanded','true');
+  ul.querySelectorAll('li[data-s]').forEach(li=>li.onclick=()=>pick(li.dataset.s));
+}
+function pick(sym){if(!sym)return;$('sugg').hidden=true;$('q').value='';location.hash='stock='+encodeURIComponent(sym.toUpperCase())}
+
+/* ---------------- single stock ---------------- */
+let cur=null,liveTimer=null;
+async function openStock(sym,refresh){
+  clearInterval(liveTimer);
+  $('detail').innerHTML=`<div class="panel empty">Fetching ${esc(sym)} — financial statements, price history and analyst data…</div>`;
+  try{cur=await api('/api/stock/'+encodeURIComponent(sym)+(refresh?'?refresh=1':''))}
+  catch(e){$('detail').innerHTML=`<div class="panel empty err">${esc(e.message)}</div>`;return}
+  renderStock(cur);
+  liveTimer=setInterval(livePrice,15000);
+}
+async function livePrice(){
+  if(!cur||document.hidden)return;
+  try{
+    const [q]=await api('/api/quotes?symbols='+encodeURIComponent(cur.symbol));
+    if(!q||!ok(q.price))return;
+    const el=$('px');if(!el)return;
+    const up=q.price>cur.price,dn=q.price<cur.price;
+    cur.price=q.price;cur.changePct=q.changePct;
+    el.textContent=money(q.price,cur.currency);
+    el.style.color=up?'var(--up)':dn?'var(--down)':'';setTimeout(()=>el.style.color='',900);
+    $('chg').textContent=pct(q.changePct,2)+' today';$('chg').className='chg '+(q.changePct>=0?'pos':'neg');
+    $('ts').textContent=q.marketState==='REGULAR'?'Live · '+new Date(q.time||Date.now()).toLocaleTimeString():'Market closed · last '+new Date(q.time||Date.now()).toLocaleString();
+  }catch(e){}
+}
+function renderStock(s){
+  const col=tone(s.score),m=s.metrics||{},a=s.analyst||{};
+  const upside=a.target&&s.price?(a.target/s.price-1)*100:null;
+  $('detail').innerHTML=`
+  <div class="panel">
+    <div class="qhead">
+      <div><p class="qname">${esc(s.name)}</p><div class="muted small">${esc(s.symbol)} · ${esc(s.exchange)}${s.sector?' · '+esc(s.sector):''}${s.industry?' / '+esc(s.industry):''}</div></div>
+      <div><div class="qprice" id="px">${money(s.price,s.currency)}</div>
+        <div style="text-align:right"><span id="chg" class="chg ${s.changePct>=0?'pos':'neg'}">${pct(s.changePct,2)} today</span></div>
+        <div class="live" id="tsWrap"><i></i><span id="ts">Live price, refreshes every 15s</span></div></div>
+    </div>
+    <div class="dgrid">
+      <div>
+        ${s.score==null?'<div class="empty">Not enough data to score.</div>':`
+        <svg class="dial" viewBox="0 0 220 124" aria-hidden="true">
+          <path d="M20 112 A90 90 0 0 1 200 112" fill="none" stroke="var(--line)" stroke-width="14" stroke-linecap="round" pathLength="100"/>
+          <path class="arc" d="M20 112 A90 90 0 0 1 200 112" fill="none" stroke="${col}" stroke-width="14" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>
+          <g class="needle" style="transform:rotate(-90deg)"><line x1="110" y1="112" x2="110" y2="36" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/><circle cx="110" cy="112" r="5" fill="var(--ink)"/></g>
+        </svg>
+        <div class="score">${s.score}<small>/100</small></div>`}
+        <div class="verdict" style="color:${col}">${esc(s.label||'')}</div>
+        <p class="outlook">${esc(s.outlook||'')}</p>
+        <p class="small muted" style="text-align:center">Based on ${s.confidence}% of scoring inputs${s.isFin?' · bank/finance rules applied':''} · <a href="#" id="reload" style="color:inherit">refresh data</a></p>
+        <h2>What drives the score</h2>
+        ${s.factors.map(f=>`<div class="factor"><span>${esc(f.name)}</span><span class="bar"><i style="width:${f.score??0}%;background:${tone(f.score)}"></i></span><span class="val">${f.score??'–'}</span><span class="dt">${esc(f.detail)}</span></div>`).join('')}
+      </div>
+      <div>
+        <h2 style="margin-top:0">Price, last 12 months</h2>
+        ${priceChart(s.history)}
+        <h2>Key findings</h2>
+        <ul class="reasons">${[...s.pos.map(t=>`<li class="good">${esc(t)}</li>`),...s.neg.map(t=>`<li class="bad">${esc(t)}</li>`)].join('')||'<li>No standout strengths or red flags.</li>'}</ul>
+        <h2>Numbers</h2>
+        <div class="kv">
+          <div><span>Market cap</span><b>${money(s.marketCap,s.currency,true)}</b></div>
+          <div><span>P/E</span><b>${n2(m.pe)}</b></div>
+          <div><span>Debt / Equity</span><b>${n2(m.de,2)}</b></div>
+          <div><span>ROE</span><b>${ok(m.roe)?n2(m.roe)+'%':'–'}</b></div>
+          <div><span>Net margin</span><b>${ok(m.margin)?n2(m.margin)+'%':'–'}</b></div>
+          <div><span>Revenue growth</span><b>${pct(m.revCagr)}</b></div>
+          <div><span>1Y return</span><b>${pct(m.r1y)}</b></div>
+          <div><span>Analyst target${a.count?' ('+a.count+')':''}</span><b>${a.target?money(a.target,s.currency)+' '+'<span class="small '+(upside>=0?'pos':'neg')+'">'+pct(upside,0)+'</span>':'–'}</b></div>
+        </div>
+        ${a.rating?`<p class="small muted">Analyst consensus: <b>${esc(a.rating.replace('_',' '))}</b></p>`:''}
+        ${s.annual.length?`<h2>Revenue, profit and debt by year</h2>${annualChart(s.annual,s.currency)}
+        <div class="legend"><span><b style="background:var(--rev)"></b>Revenue</span><span><b style="background:var(--up)"></b>Profit</span><span><b style="background:var(--mid)"></b>Debt</span></div>`:''}
+        <p class="small muted">Fundamentals updated ${new Date(s.updated).toLocaleString()}</p>
+      </div>
+    </div>
+  </div>`;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const arc=document.querySelector('.dial .arc'),nd=document.querySelector('.dial .needle');
+    if(arc)arc.setAttribute('stroke-dasharray',`${s.score} 100`);
+    if(nd)nd.style.transform=`rotate(${-90+s.score*1.8}deg)`;
+  }));
+  $('reload').onclick=e=>{e.preventDefault();openStock(s.symbol,true)};
+  livePrice();
+}
+function priceChart(h){
+  if(!h||h.length<2)return'<p class="muted small">No price history.</p>';
+  const W=560,H=180,p=6,ys=h.map(x=>x[1]),mn=Math.min(...ys),mx=Math.max(...ys),r=(mx-mn)||1;
+  const X=i=>p+i/(h.length-1)*(W-2*p),Y=v=>p+(mx-v)/r*(H-2*p-16);
+  const pts=h.map((x,i)=>`${X(i).toFixed(1)},${Y(x[1]).toFixed(1)}`).join(' ');
+  const c=ys.at(-1)>=ys[0]?'var(--up)':'var(--down)';
+  const d0=new Date(h[0][0]).toLocaleDateString(undefined,{month:'short',year:'2-digit'}),d1=new Date(h.at(-1)[0]).toLocaleDateString(undefined,{month:'short',year:'2-digit'});
+  return`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Price chart">
+    <polygon points="${p},${H-22} ${pts} ${W-p},${H-22}" fill="${c}" opacity=".1"/>
+    <polyline points="${pts}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/>
+    <text x="${p}" y="${H-4}" font-size="11" fill="var(--muted)">${d0}</text><text x="${W-p}" y="${H-4}" font-size="11" fill="var(--muted)" text-anchor="end">${d1}</text>
+    <text x="${W-p}" y="${Y(mx)+10}" font-size="11" fill="var(--muted)" text-anchor="end">high ${mx.toFixed(0)}</text></svg>`;
+}
+function annualChart(rows,cur){
+  rows=rows.slice(-4);
+  const vals=rows.flatMap(r=>[r.revenue,r.profit,r.debt]).filter(ok);if(!vals.length)return'';
+  const W=560,H=170,top=8,bot=H-22,mx=Math.max(...vals,0),mn=Math.min(...vals,0),rg=(mx-mn)||1,y=v=>top+(mx-v)/rg*(bot-top);
+  const gw=W/rows.length,bw=Math.min(34,gw/4);
+  let s=`<line x1="0" x2="${W}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line)"/>`;
+  rows.forEach((r,i)=>{
+    const x0=i*gw+gw/2-bw*1.6;
+    [[r.revenue,'var(--rev)'],[r.profit,r.profit<0?'var(--down)':'var(--up)'],[r.debt,'var(--mid)']].forEach(([v,c],k)=>{
+      if(!ok(v))return;s+=`<rect x="${x0+k*(bw+4)}" y="${Math.min(y(v),y(0))}" width="${bw}" height="${Math.max(1,Math.abs(y(v)-y(0)))}" rx="2" fill="${c}"><title>${money(v,cur,true)}</title></rect>`});
+    s+=`<text x="${i*gw+gw/2}" y="${H-4}" font-size="11" text-anchor="middle" fill="var(--muted)">${r.year}</text>`;
+  });
+  return`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Annual financials">${s}</svg>`;
+}
+
+/* ---------------- scanner ---------------- */
+let uniLoaded=false,rows=new Map(),es=null,sortK='score',sortDir='desc',fails=0,drawQ=false;
+async function initScan(){
+  uniLoaded=true;
+  const u=await api('/api/universes').catch(()=>[]);
+  $('uni').innerHTML=u.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')+'<option value="custom">My own list</option>';
+  $('uni').onchange=()=>{$('customBox').hidden=$('uni').value!=='custom';loadCached()};
+  loadCached();
+  setInterval(refreshPrices,60000);
+}
+async function loadCached(){
+  rows.clear();fails=0;draw();
+  const u=$('uni').value;if(u==='custom'&&!$('custom').value.trim())return;
+  $('progText').textContent='Loading cached results…';
+  try{const r=await api(`/api/results?universe=${u}&custom=${encodeURIComponent($('custom').value)}`);
+    r.rows.forEach(x=>rows.set(x.symbol,x));
+    $('progText').textContent=r.rows.length?`${r.rows.length} of ${r.total.toLocaleString()} stocks already analysed (cached). Start the scan to fill in the rest.`:`${r.total.toLocaleString()} stocks in this market. Start the scan to analyse them.`;
+    $('progBar').style.width=(r.total?r.rows.length/r.total*100:0)+'%';draw();
+  }catch(e){$('progText').innerHTML=`<span class="err">${esc(e.message)}</span>`}
+}
+$('start').onclick=()=>{
+  if(es)es.close();
+  const u=$('uni').value;
+  if(u==='custom'&&!$('custom').value.trim()){$('progText').innerHTML='<span class="err">Add at least one symbol.</span>';return}
+  fails=0;
+  es=new EventSource(`/api/scan?universe=${u}&custom=${encodeURIComponent($('custom').value)}${$('refresh').checked?'&refresh=1':''}`);
+  $('start').disabled=true;$('stop').disabled=false;$('progText').textContent='Loading stock list…';
+  es.addEventListener('start',e=>{const d=JSON.parse(e.data);$('progText').textContent=`Scanning ${d.total.toLocaleString()} stocks…`});
+  es.addEventListener('row',e=>{const r=JSON.parse(e.data);rows.set(r.symbol,r);draw()});
+  es.addEventListener('fail',()=>fails++);
+  es.addEventListener('progress',e=>{const d=JSON.parse(e.data);$('progBar').style.width=(d.done/d.total*100)+'%';
+    $('progText').textContent=`Scanned ${d.done.toLocaleString()} of ${d.total.toLocaleString()}${fails?` · ${fails} without data`:''}`});
+  es.addEventListener('done',()=>{finish();$('progText').textContent+=' · Done'});
+  es.addEventListener('fatal',e=>{finish();$('progText').innerHTML=`<span class="err">${esc(JSON.parse(e.data).error)}</span>`});
+  es.onerror=()=>{if(es&&es.readyState===2)finish()};
+};
+$('stop').onclick=()=>{finish();$('progText').textContent+=' · Stopped'};
+function finish(){if(es){es.close();es=null}$('start').disabled=false;$('stop').disabled=true}
+
+['fText','fLabel','fSector'].forEach(id=>$(id).addEventListener('input',draw));
+$('fMin').addEventListener('input',()=>{$('fMinV').textContent=$('fMin').value;draw()});
+document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.k;sortDir=sortK===k&&sortDir==='desc'?'asc':'desc';sortK=k;
+  document.querySelectorAll('th').forEach(t=>t.removeAttribute('data-dir'));th.dataset.dir=sortDir;draw();
+});
+function filtered(){
+  const t=$('fText').value.trim().toLowerCase(),min=+$('fMin').value,lab=$('fLabel').value,sec=$('fSector').value;
+  const out=[...rows.values()].filter(r=>(!t||r.symbol.toLowerCase().includes(t)||(r.name||'').toLowerCase().includes(t))&&(r.score??-1)>=min&&(!lab||r.label===lab)&&(!sec||r.sector===sec));
+  const dir=sortDir==='asc'?1:-1;
+  out.sort((a,b)=>{const x=a[sortK],y=b[sortK];if(x==null)return 1;if(y==null)return -1;return(typeof x==='string'?x.localeCompare(y):x-y)*dir});
+  return out;
+}
+function draw(){if(drawQ)return;drawQ=true;requestAnimationFrame(()=>{drawQ=false;paint()})}
+function paint(){
+  const secs=[...new Set([...rows.values()].map(r=>r.sector).filter(Boolean))].sort(),sel=$('fSector'),v=sel.value;
+  if(sel.options.length-1!==secs.length){sel.innerHTML='<option value="">All sectors</option>'+secs.map(s=>`<option>${esc(s)}</option>`).join('');sel.value=v}
+  const list=filtered(),shown=list.slice(0,500);
+  $('count').textContent=`${list.length.toLocaleString()} stocks${list.length>500?' (showing top 500)':''}`;
+  $('tbody').innerHTML=shown.map(r=>`<tr data-s="${esc(r.symbol)}">
+    <td><b>${esc(r.symbol)}</b><span class="nm">${esc(r.name)}</span></td>
+    <td>${money(r.price,r.currency)}</td><td class="${r.changePct>=0?'pos':'neg'}">${pct(r.changePct,2)}</td>
+    <td><span class="pill" style="background:${tone(r.score)}">${r.score??'–'}</span></td><td>${esc(r.label||'')}</td>
+    <td>${n2(r.pe)}</td><td>${n2(r.de,2)}</td><td>${pct(r.revCagr)}</td><td class="${r.r1y>=0?'pos':'neg'}">${pct(r.r1y)}</td>
+    <td class="${r.upside>=0?'pos':'neg'}">${pct(r.upside,0)}</td></tr>`).join('')||`<tr><td colspan="10" class="muted" style="text-align:center;padding:30px">No stocks yet. Start a scan.</td></tr>`;
+  $('tbody').querySelectorAll('tr[data-s]').forEach(tr=>tr.onclick=()=>{location.hash='stock='+encodeURIComponent(tr.dataset.s)});
+}
+async function refreshPrices(){
+  if(document.hidden||$('viewScan').hidden||!rows.size)return;
+  const syms=filtered().slice(0,100).map(r=>r.symbol);
+  try{const q=await api('/api/quotes?symbols='+encodeURIComponent(syms.join(',')));
+    q.forEach(x=>{const r=rows.get(x.symbol);if(r&&ok(x.price)){r.price=x.price;r.changePct=x.changePct}});draw()}catch(e){}
+}
+$('csv').onclick=()=>{
+  const cols=['symbol','name','sector','price','changePct','score','label','pe','de','revCagr','r1y','upside'];
+  const q=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const csv=[cols.join(','),...filtered().map(r=>cols.map(c=>q(ok(r[c])&&typeof r[c]==='number'?+r[c].toFixed(2):r[c])).join(','))].join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`stockpulse-${$('uni').value}-${new Date().toISOString().slice(0,10)}.csv`;a.click();
+};
+
+route();
+</script>
+</body>
+</html>

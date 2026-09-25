@@ -1,0 +1,13 @@
+{
+  "name": "stockpulse",
+  "version": "1.0.0",
+  "description": "Live fundamentals-based stock outlook and market scanner (NSE/BSE/US) using Yahoo Finance data",
+  "type": "module",
+  "main": "server.js",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node server.js", "dev": "node --watch server.js" },
+  "dependencies": {
+    "express": "^5.1.0",
+    "yahoo-finance2": "^4.0.2"
+  }
+}
