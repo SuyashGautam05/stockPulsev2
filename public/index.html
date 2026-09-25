@@ -134,6 +134,28 @@ td .nm{display:block;font-size:12px;color:var(--muted);max-width:240px;overflow:
 .log{list-style:none;margin:0;padding:0;font-size:13px}
 .log li{padding:6px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;flex-wrap:wrap}
 .log time{color:var(--muted);font-variant-numeric:tabular-nums;min-width:150px}
+/* ai chat */
+.chat{display:flex;flex-direction:column;gap:14px;max-width:860px;margin:0 auto}
+.msgs{display:flex;flex-direction:column;gap:14px;min-height:240px}
+.msg{max-width:88%;padding:12px 16px;border-radius:14px;font-size:15px;line-height:1.55;overflow-wrap:anywhere}
+.msg.user{align-self:flex-end;background:var(--ink);color:var(--panel);border-bottom-right-radius:4px;white-space:pre-wrap}
+.msg.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.bot p{margin:0 0 8px} .msg.bot p:last-child{margin:0}
+.msg.bot ul,.msg.bot ol{margin:4px 0 8px;padding-left:20px} .msg.bot li{margin:3px 0}
+.msg.bot h3,.msg.bot h4{font-size:15px;margin:10px 0 6px}
+.msg.bot .tw{overflow-x:auto;margin:6px 0 10px}
+.msg.bot table{min-width:0;font-size:13px;border:1px solid var(--line);border-radius:8px}
+.msg.bot th,.msg.bot td{padding:6px 10px;text-align:left;position:static;cursor:auto}
+.msg.bot code{background:var(--field);padding:1px 5px;border-radius:4px;font-size:13px}
+.msg.err{border-color:var(--down);color:var(--down)}
+.steps{display:flex;flex-wrap:wrap;gap:6px;align-self:flex-start}
+.step{font-size:12px;padding:3px 10px;border-radius:20px;background:var(--field);color:var(--muted);border:1px solid var(--line)}
+.step.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--up);margin-right:6px;animation:pulse 1.2s infinite}
+.step a{color:inherit}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{font-size:13px;border-radius:20px}
+.composer{display:flex;gap:8px;align-items:flex-end;position:sticky;bottom:0;background:var(--bg);padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px))}
+.composer textarea{flex:1;resize:none;min-height:46px;max-height:160px;border-radius:12px;padding:12px 14px;font-size:15px}
 footer{color:var(--muted);font-size:12px;margin-top:28px;max-width:90ch}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -147,6 +169,7 @@ footer{color:var(--muted);font-size:12px;margin-top:28px;max-width:90ch}
       <button role="tab" id="tabScan" aria-selected="false">Scan the market</button>
       <button role="tab" id="tabPicks" aria-selected="false">Buy picks</button>
       <button role="tab" id="tabWatch" aria-selected="false">Watchlist</button>
+      <button role="tab" id="tabAI" aria-selected="false">Ask AI</button>
     </div>
   </header>
 
@@ -252,6 +275,25 @@ footer{color:var(--muted);font-size:12px;margin-top:28px;max-width:90ch}
     </div>
   </section>
 
+  <!-- ============ Ask AI ============ -->
+  <section id="viewAI" hidden>
+    <div class="chat">
+      <div class="msgs" id="aiMsgs"></div>
+      <div class="chips" id="aiChips">
+        <button>Aaj Nifty 50 me kaunsa share kharidna chahiye?</button>
+        <button>Reliance abhi khareedun ya wait karun?</button>
+        <button>Mere watchlist me kaunsa bechna chahiye?</button>
+        <button>TCS vs Infosys — kaunsa better hai?</button>
+        <button>HDFC Bank upar jaayega ya neeche?</button>
+      </div>
+      <div class="composer">
+        <textarea id="aiIn" rows="1" placeholder="Kuch bhi poocho — kaunsa share lein, kab khareedein, kab bechein…"></textarea>
+        <button class="primary" id="aiSend">Send</button>
+        <button id="aiClear" title="Clear chat">Clear</button>
+      </div>
+    </div>
+  </section>
+
   <footer>Buy picks are rules-based screens (strong fundamentals + price near its trend), not personal advice. Entry zones, stop-losses and targets are reference levels only; size positions so a stop-loss hit is affordable, and check news and results before any trade.<br>Data: Yahoo Finance (prices may be delayed up to 15 min depending on exchange). The score is a rules-based read of fundamentals and price trend, not a guarantee — markets also react to news, rates and sentiment that no model sees in advance. Educational use only, not investment advice.</footer>
 </div>
 
@@ -272,7 +314,8 @@ function money(x,cur,compact){
 
 /* ---------------- tabs & routing ---------------- */
 function show(tab){
-  $('viewOne').hidden=tab!=='one';$('viewScan').hidden=tab!=='scan';$('viewPicks').hidden=tab!=='picks';$('viewWatch').hidden=tab!=='watch';
+  $('viewOne').hidden=tab!=='one';$('viewScan').hidden=tab!=='scan';$('viewPicks').hidden=tab!=='picks';$('viewWatch').hidden=tab!=='watch';$('viewAI').hidden=tab!=='ai';
+  $('tabAI').setAttribute('aria-selected',tab==='ai');if(tab==='ai')aiPaint();
   $('tabOne').setAttribute('aria-selected',tab==='one');$('tabScan').setAttribute('aria-selected',tab==='scan');
   $('tabPicks').setAttribute('aria-selected',tab==='picks');$('tabWatch').setAttribute('aria-selected',tab==='watch');
   if(tab==='watch')wRender();
@@ -281,8 +324,9 @@ $('tabOne').onclick=()=>show('one');
 $('tabScan').onclick=()=>{show('scan');if(!uniLoaded)initScan()};
 $('tabPicks').onclick=()=>{show('picks');if(!picksInit)initPicks()};
 $('tabWatch').onclick=()=>{location.hash='watchlist';show('watch')};
+$('tabAI').onclick=()=>{location.hash='ai';show('ai');$('aiIn').focus()};
 window.addEventListener('hashchange',route);
-function route(){if(location.hash==='#watchlist'){show('watch');return}const m=location.hash.match(/stock=([^&]+)/);if(m){show('one');openStock(decodeURIComponent(m[1]))}}
+function route(){if(location.hash==='#watchlist'){show('watch');return}if(location.hash==='#ai'){show('ai');return}const m=location.hash.match(/stock=([^&]+)/);if(m){show('one');openStock(decodeURIComponent(m[1]))}}
 
 /* ---------------- search ---------------- */
 let sTimer,sItems=[],sIdx=-1,sCtl;
@@ -813,6 +857,77 @@ $('wImport').onchange=async()=>{
 wLoadAll();
 setInterval(wPrices,15000);
 setInterval(()=>wLoadAll(true),30*60*1000);   // refresh fundamentals & moving averages every 30 min
+
+/* ---------------- Ask AI ---------------- */
+let aiChat=ls.get('sp-chat',[]),aiBusy=false;
+function md(src){
+  const inline=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*(?!\s)(.+?)\*/g,'$1<i>$2</i>').replace(/`([^`]+)`/g,'<code>$1</code>');
+  const lines=src.replace(/\r/g,'').split('\n');let h='',i=0;
+  while(i<lines.length){
+    const l=lines[i];
+    if(/^\s*\|.*\|\s*$/.test(l)&&i+1<lines.length&&/^\s*\|?\s*:?-{2,}/.test(lines[i+1])){
+      const row=x=>x.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+      const head=row(l);i+=2;const body=[];
+      while(i<lines.length&&/^\s*\|.*\|\s*$/.test(lines[i]))body.push(row(lines[i++]));
+      h+=`<div class="tw"><table><thead><tr>${head.map(c=>`<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${body.map(r=>`<tr>${r.map(c=>`<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;continue;
+    }
+    if(/^\s*[-*•]\s+/.test(l)){h+='<ul>';while(i<lines.length&&/^\s*[-*•]\s+/.test(lines[i]))h+=`<li>${inline(lines[i++].replace(/^\s*[-*•]\s+/,''))}</li>`;h+='</ul>';continue}
+    if(/^\s*\d+[.)]\s+/.test(l)){h+='<ol>';while(i<lines.length&&/^\s*\d+[.)]\s+/.test(lines[i]))h+=`<li>${inline(lines[i++].replace(/^\s*\d+[.)]\s+/,''))}</li>`;h+='</ol>';continue}
+    const hm=l.match(/^#{1,4}\s+(.*)/);if(hm){h+=`<h3>${inline(hm[1])}</h3>`;i++;continue}
+    if(/^\s*(-{3,}|\*{3,})\s*$/.test(l)){i++;continue}
+    if(!l.trim()){i++;continue}
+    const para=[];while(i<lines.length&&lines[i].trim()&&!/^\s*([-*•]\s|\d+[.)]\s|#|\|)/.test(lines[i]))para.push(inline(lines[i++]));
+    if(para.length)h+=`<p>${para.join('<br>')}</p>`;else h+=`<p>${inline(lines[i++])}</p>`;
+  }
+  return h;
+}
+function aiPaint(){
+  const box=$('aiMsgs');
+  if(!aiChat.length){box.innerHTML='<div class="msg bot"><p><b>Namaste!</b> Main StockPulse AI hoon. Main live market data dekh kar bataunga kaunsa share strong hai, kis price pe khareedna theek rahega, aur kab bechna chahiye. Neeche se koi sawaal chuno ya apna poocho.</p></div>';$('aiChips').hidden=false;return}
+  $('aiChips').hidden=true;
+  box.innerHTML=aiChat.map(m=>m.role==='user'?`<div class="msg user">${esc(m.content)}</div>`:
+    `${m.stocks&&m.stocks.length?`<div class="steps">${m.stocks.map(x=>`<span class="step"><a href="#stock=${encodeURIComponent(x.symbol)}">${esc(x.symbol)}</a> · ${money(x.price,x.currency)} · ${esc(x.signal)}</span>`).join('')}</div>`:''}<div class="msg bot${m.error?' err':''}">${m.error?esc(m.content):md(m.content)}</div>`).join('');
+}
+async function aiSend(text){
+  text=(text??$('aiIn').value).trim();if(!text||aiBusy)return;
+  aiBusy=true;$('aiSend').disabled=true;$('aiIn').value='';aiGrow();
+  aiChat.push({role:'user',content:text});aiPaint();
+  const box=$('aiMsgs'),steps=document.createElement('div');steps.className='steps';
+  steps.innerHTML='<span class="step live">Thinking…</span>';box.appendChild(steps);steps.scrollIntoView({behavior:'smooth',block:'end'});
+  const stocks=[];let answer=null,err=null,lastStep=steps.firstChild;
+  const addStep=t=>{if(lastStep)lastStep.classList.remove('live');const e=document.createElement('span');e.className='step live';e.textContent=t;steps.appendChild(e);lastStep=e;steps.scrollIntoView({behavior:'smooth',block:'end'})};
+  try{
+    const history=aiChat.filter(m=>!m.error).slice(-12).map(m=>({role:m.role,content:m.content}));
+    const r=await fetch('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:history,watchlist:wList})});
+    if(!r.ok||!r.body)throw new Error('Server error '+r.status);
+    const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+    for(;;){
+      const {value,done}=await rd.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      let k;while((k=buf.indexOf('\n\n'))>-1){
+        const chunk=buf.slice(0,k);buf=buf.slice(k+2);
+        const ev=(chunk.match(/^event: (.*)$/m)||[])[1],dl=(chunk.match(/^data: (.*)$/m)||[])[1];if(!ev||!dl)continue;
+        const d=JSON.parse(dl);
+        if(ev==='tool')addStep(d.label);
+        else if(ev==='progress'&&lastStep)lastStep.textContent=d.label;
+        else if(ev==='stock')stocks.push(d);
+        else if(ev==='answer')answer=d.text;
+        else if(ev==='error')err=d.error;
+      }
+    }
+    if(!answer&&!err)err='No answer came back. Try again.';
+  }catch(e){err=e.message}
+  aiChat.push(err?{role:'assistant',content:err,error:true}:{role:'assistant',content:answer,stocks});
+  aiChat=aiChat.slice(-40);ls.set('sp-chat',aiChat);
+  aiBusy=false;$('aiSend').disabled=false;aiPaint();
+  const all=$('aiMsgs').children;all[all.length-1]?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function aiGrow(){const t=$('aiIn');t.style.height='auto';t.style.height=Math.min(t.scrollHeight,160)+'px'}
+$('aiIn').addEventListener('input',aiGrow);
+$('aiIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();aiSend()}});
+$('aiSend').onclick=()=>aiSend();
+$('aiClear').onclick=()=>{if(aiBusy)return;aiChat=[];ls.set('sp-chat',aiChat);aiPaint()};
+$('aiChips').querySelectorAll('button').forEach(b=>b.onclick=()=>aiSend(b.textContent));
 
 route();
 </script>

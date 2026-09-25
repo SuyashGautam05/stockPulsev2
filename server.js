@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import YahooFinance from 'yahoo-finance2';
 import { analyze } from './lib/analyze.js';
 import { loadUniverse, UNIVERSES } from './lib/universe.js';
+import { createAgent } from './lib/agent.js';
 
 const PORT = process.env.PORT || 3000;
 const TTL = 12 * 3600 * 1000;          // re-fetch fundamentals every 12h
@@ -23,6 +24,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const app = express();
+app.use(express.json({ limit: '200kb' }));
 app.use(express.static(PUBLIC_DIR));
 // Explicit route so / works on Vercel even when static serving isn't picked up
 app.get('/', (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
@@ -124,14 +126,24 @@ const row = (s) => ({
 });
 
 // ---------- API ----------
+async function searchStocks(qy) {
+  const r = await yf.search(qy, { quotesCount: 10, newsCount: 0 }, { validateResult: false });
+  return (r.quotes || []).filter((x) => x.quoteType === 'EQUITY' && x.symbol)
+    .map((x) => ({ symbol: x.symbol, name: x.longname || x.shortname || x.symbol, exchange: x.exchDisp || x.exchange }));
+}
+async function getQuotes(syms) {
+  const r = await yf.quote(syms, { fields: ['symbol', 'regularMarketPrice', 'regularMarketChangePercent', 'regularMarketTime', 'marketState'] }, { validateResult: false });
+  return (Array.isArray(r) ? r : [r]).map((x) => ({
+    symbol: x.symbol, price: x.regularMarketPrice, changePct: x.regularMarketChangePercent,
+    time: x.regularMarketTime ? +toDate(x.regularMarketTime) : null, marketState: x.marketState
+  }));
+}
+
 app.get('/api/search', async (req, res) => {
   const qy = String(req.query.q || '').trim();
   if (!qy) return res.json([]);
-  try {
-    const r = await yf.search(qy, { quotesCount: 10, newsCount: 0 }, { validateResult: false });
-    res.json((r.quotes || []).filter((x) => x.quoteType === 'EQUITY' && x.symbol)
-      .map((x) => ({ symbol: x.symbol, name: x.longname || x.shortname || x.symbol, exchange: x.exchDisp || x.exchange })));
-  } catch (e) { res.status(502).json({ error: 'Search failed: ' + e.message }); }
+  try { res.json(await searchStocks(qy)); }
+  catch (e) { res.status(502).json({ error: 'Search failed: ' + e.message }); }
 });
 
 app.get('/api/stock/:symbol', async (req, res) => {
@@ -143,13 +155,24 @@ app.get('/api/stock/:symbol', async (req, res) => {
 app.get('/api/quotes', async (req, res) => {
   const syms = String(req.query.symbols || '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 100);
   if (!syms.length) return res.json([]);
+  try { res.json(await getQuotes(syms)); }
+  catch (e) { res.status(502).json({ error: e.message }); }
+});
+
+// ---------- AI agent ----------
+const ask = createAgent({ getStock, getQuotes, searchStocks, nifty50: () => loadUniverse('nifty50') });
+app.post('/api/agent', async (req, res) => {
+  res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+  res.flushHeaders();
+  const send = (ev, data) => res.write(`event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`);
   try {
-    const r = await yf.quote(syms, { fields: ['symbol', 'regularMarketPrice', 'regularMarketChangePercent', 'regularMarketTime', 'marketState'] }, { validateResult: false });
-    res.json((Array.isArray(r) ? r : [r]).map((x) => ({
-      symbol: x.symbol, price: x.regularMarketPrice, changePct: x.regularMarketChangePercent,
-      time: x.regularMarketTime ? +toDate(x.regularMarketTime) : null, marketState: x.marketState
-    })));
-  } catch (e) { res.status(502).json({ error: e.message }); }
+    const messages = (Array.isArray(req.body?.messages) ? req.body.messages : [])
+      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content).slice(-12);
+    if (!messages.length || messages.at(-1).role !== 'user') throw new Error('Ask a question first.');
+    const answer = await ask({ messages, watchlist: Array.isArray(req.body.watchlist) ? req.body.watchlist.slice(0, 50) : [] }, send);
+    send('answer', { text: answer });
+  } catch (e) { send('error', { error: e.message || String(e) }); }
+  res.end();
 });
 
 app.get('/api/universes', (_req, res) => {
