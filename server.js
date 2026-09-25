@@ -1,6 +1,7 @@
 import express from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import YahooFinance from 'yahoo-finance2';
 import { analyze } from './lib/analyze.js';
 import { loadUniverse, UNIVERSES } from './lib/universe.js';
@@ -8,7 +9,9 @@ import { loadUniverse, UNIVERSES } from './lib/universe.js';
 const PORT = process.env.PORT || 3000;
 const TTL = 12 * 3600 * 1000;          // re-fetch fundamentals every 12h
 const SCAN_CONCURRENCY = 3;            // keep low: Yahoo rate-limits aggressive scanners
-const CACHE_FILE = path.resolve('data/cache.json');
+// Vercel's filesystem is read-only except /tmp
+const DATA_DIR = process.env.VERCEL ? '/tmp' : path.resolve('data');
+const CACHE_FILE = path.join(DATA_DIR, 'cache.json');
 
 const quiet = () => {};
 const DEBUG = !!process.env.DEBUG;
@@ -16,8 +19,13 @@ const yf = new YahooFinance({
   suppressNotices: ['yahooSurvey'],
   logger: { info: DEBUG ? console.log : quiet, debug: DEBUG ? console.log : quiet, dir: quiet, warn: DEBUG ? console.warn : quiet, error: DEBUG ? console.error : quiet }
 });
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PUBLIC_DIR = path.join(__dirname, 'public');
+
 const app = express();
-app.use(express.static('public'));
+app.use(express.static(PUBLIC_DIR));
+// Explicit route so / works on Vercel even when static serving isn't picked up
+app.get('/', (_req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
 
 // ---------- cache (persists across restarts) ----------
 let cache = {};
@@ -178,4 +186,6 @@ app.get('/api/scan', async (req, res) => {
   if (!stopped) { send('done', { total: list.length }); res.end(); }
 });
 
-app.listen(PORT, () => console.log(`StockPulse running → http://localhost:${PORT}`));
+if (!process.env.VERCEL) app.listen(PORT, () => console.log(`StockPulse running → http://localhost:${PORT}`));
+
+export default app;
