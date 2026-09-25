@@ -93,6 +93,47 @@ th[data-dir="asc"]::after{content:" ▲"} th[data-dir="desc"]::after{content:" �
 tbody tr{cursor:pointer} tbody tr:hover{background:var(--field)}
 td .nm{display:block;font-size:12px;color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis}
 .pill{display:inline-block;min-width:36px;text-align:center;padding:2px 8px;border-radius:20px;font-weight:700;color:#fff}
+/* picks */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.card .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.card .sym{font-weight:700;font-size:16px}
+.card .nm{font-size:12px;color:var(--muted);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .px{font-size:20px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums;transition:color .6s}
+.sig{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.sig.buy{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
+.sig.wait{background:color-mix(in srgb,var(--mid) 20%,transparent);color:var(--mid)}
+.sig.watch{background:var(--field);color:var(--muted)}
+.lv{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:13px}
+.lv span{color:var(--muted)} .lv b{font-variant-numeric:tabular-nums;text-align:right}
+.card .why{font-size:12px;color:var(--muted)}
+.card .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}
+.card .acts a,.card .acts button{font-size:13px;padding:5px 10px;border-radius:7px;border:1px solid var(--line);color:var(--ink);text-decoration:none;background:var(--panel)}
+.card.flash{box-shadow:0 0 0 2px var(--up)}
+/* watchlist */
+.wbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.clock{font-variant-numeric:tabular-nums;font-weight:600}
+.mkt{font-size:13px;padding:3px 10px;border-radius:20px;background:var(--field);color:var(--muted)}
+.mkt.open{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
+.wform{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.wform label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.wform .search{margin:0;min-width:240px;flex:1 1 240px}
+.wform .search input{padding:8px 10px;font-size:15px}
+.wform input[type=number],.wform input[type=date]{width:130px}
+.own{display:contents}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0}
+.summary div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.summary span{display:block;font-size:12px;color:var(--muted)}
+.summary b{font-size:20px;font-variant-numeric:tabular-nums}
+.wsig{display:inline-block;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:800;letter-spacing:.02em}
+.wsig.buy{background:var(--up);color:#fff}
+.wsig.sell{background:var(--down);color:#fff}
+.wsig.profit{background:var(--mid);color:#fff}
+.wsig.hold,.wsig.wait{background:var(--field);color:var(--ink);border:1px solid var(--line)}
+.wsig.avoid{background:color-mix(in srgb,var(--down) 15%,transparent);color:var(--down)}
+.log{list-style:none;margin:0;padding:0;font-size:13px}
+.log li{padding:6px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;flex-wrap:wrap}
+.log time{color:var(--muted);font-variant-numeric:tabular-nums;min-width:150px}
 footer{color:var(--muted);font-size:12px;margin-top:28px;max-width:90ch}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -104,6 +145,8 @@ footer{color:var(--muted);font-size:12px;margin-top:28px;max-width:90ch}
     <div class="tabs" role="tablist">
       <button role="tab" id="tabOne" aria-selected="true">Analyze a stock</button>
       <button role="tab" id="tabScan" aria-selected="false">Scan the market</button>
+      <button role="tab" id="tabPicks" aria-selected="false">Buy picks</button>
+      <button role="tab" id="tabWatch" aria-selected="false">Watchlist</button>
     </div>
   </header>
 
@@ -150,7 +193,66 @@ footer{color:var(--muted);font-size:12px;margin-top:28px;max-width:90ch}
     </div>
   </section>
 
-  <footer>Data: Yahoo Finance (prices may be delayed up to 15 min depending on exchange). The score is a rules-based read of fundamentals and price trend, not a guarantee — markets also react to news, rates and sentiment that no model sees in advance. Educational use only, not investment advice.</footer>
+  <!-- ============ Buy picks ============ -->
+  <section id="viewPicks" hidden>
+    <div class="panel">
+      <div class="controls">
+        <label>Market<select id="pUni"></select></label>
+        <label id="pCustomBox" hidden>Symbols (comma separated)<textarea id="pCustom"></textarea></label>
+        <label>Min score <span><input id="pMin" type="range" min="50" max="90" value="65" style="vertical-align:middle"> <b id="pMinV">65</b></span></label>
+        <label>Max P/E<input id="pPE" type="number" value="60" min="5" style="width:90px"></label>
+        <label class="chk"><input type="checkbox" id="pTrend" checked> Only uptrend (above 200-day avg)</label>
+        <label class="chk"><input type="checkbox" id="pAlert"> Alert me when a stock enters the buy zone</label>
+        <button class="primary" id="pStart">Find buy picks</button>
+        <button id="pStop" disabled>Stop</button>
+      </div>
+      <div class="prog"><i id="pBar"></i></div>
+      <div class="small muted" id="pText">Scans the market, keeps only financially strong stocks, then checks live price timing. Prices and signals refresh every 15 seconds.</div>
+    </div>
+    <div class="filters">
+      <select id="pSig"><option value="">All signals</option><option>Buy zone</option><option>Wait for dip</option><option>Watch</option></select>
+      <span class="small muted" id="pCount"></span>
+      <span class="small muted" id="pLive"></span>
+    </div>
+    <div class="cards" id="pCards"></div>
+  </section>
+
+  <!-- ============ Watchlist ============ -->
+  <section id="viewWatch" hidden>
+    <div class="wbar">
+      <div><span class="clock" id="istClock"></span> <span class="small muted">IST</span> <span class="mkt" id="nseState"></span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <label class="small muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="wAlert"> Buy/sell alerts</label>
+        <button id="wExport">Export</button><button id="wImportBtn">Import</button><input type="file" id="wImport" accept=".json" hidden>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="wform">
+        <div class="search"><label for="wq">Add a stock</label>
+          <input id="wq" placeholder="Search company or symbol" autocomplete="off">
+          <ul class="sugg" id="wsugg" hidden></ul></div>
+        <label class="chk" style="flex-direction:row;align-items:center"><input type="checkbox" id="wOwn"> I already own it</label>
+        <span class="own" id="wOwnBox" hidden>
+          <label>Buy price<input type="number" id="wBuy" step="any" min="0"></label>
+          <label>Quantity<input type="number" id="wQty" step="1" min="0"></label>
+          <label>Buy date<input type="date" id="wDate"></label>
+        </span>
+        <label>My target (optional)<input type="number" id="wTgt" step="any" min="0"></label>
+        <label>My stop-loss (optional)<input type="number" id="wStop" step="any" min="0"></label>
+        <button class="primary" id="wAdd">Add</button>
+        <button id="wCancel" hidden>Cancel</button>
+      </div>
+      <div class="small muted" id="wMsg" style="margin-top:8px">Stocks you don't own get BUY / WAIT / AVOID signals. Stocks you own get HOLD / SELL / BOOK PROFIT signals. Prices refresh every 15 seconds.</div>
+    </div>
+    <div class="summary" id="wSum" hidden></div>
+    <div class="cards" id="wCards"></div>
+    <div class="panel" style="margin-top:18px">
+      <h2 style="margin-top:0">Signal history (IST)</h2>
+      <ul class="log" id="wLog"></ul>
+    </div>
+  </section>
+
+  <footer>Buy picks are rules-based screens (strong fundamentals + price near its trend), not personal advice. Entry zones, stop-losses and targets are reference levels only; size positions so a stop-loss hit is affordable, and check news and results before any trade.<br>Data: Yahoo Finance (prices may be delayed up to 15 min depending on exchange). The score is a rules-based read of fundamentals and price trend, not a guarantee — markets also react to news, rates and sentiment that no model sees in advance. Educational use only, not investment advice.</footer>
 </div>
 
 <script>
@@ -170,14 +272,17 @@ function money(x,cur,compact){
 
 /* ---------------- tabs & routing ---------------- */
 function show(tab){
-  const one=tab==='one';
-  $('viewOne').hidden=!one;$('viewScan').hidden=one;
-  $('tabOne').setAttribute('aria-selected',one);$('tabScan').setAttribute('aria-selected',!one);
+  $('viewOne').hidden=tab!=='one';$('viewScan').hidden=tab!=='scan';$('viewPicks').hidden=tab!=='picks';$('viewWatch').hidden=tab!=='watch';
+  $('tabOne').setAttribute('aria-selected',tab==='one');$('tabScan').setAttribute('aria-selected',tab==='scan');
+  $('tabPicks').setAttribute('aria-selected',tab==='picks');$('tabWatch').setAttribute('aria-selected',tab==='watch');
+  if(tab==='watch')wRender();
 }
 $('tabOne').onclick=()=>show('one');
 $('tabScan').onclick=()=>{show('scan');if(!uniLoaded)initScan()};
+$('tabPicks').onclick=()=>{show('picks');if(!picksInit)initPicks()};
+$('tabWatch').onclick=()=>{location.hash='watchlist';show('watch')};
 window.addEventListener('hashchange',route);
-function route(){const m=location.hash.match(/stock=([^&]+)/);if(m){show('one');openStock(decodeURIComponent(m[1]))}}
+function route(){if(location.hash==='#watchlist'){show('watch');return}const m=location.hash.match(/stock=([^&]+)/);if(m){show('one');openStock(decodeURIComponent(m[1]))}}
 
 /* ---------------- search ---------------- */
 let sTimer,sItems=[],sIdx=-1,sCtl;
@@ -236,7 +341,8 @@ function renderStock(s){
       <div><p class="qname">${esc(s.name)}</p><div class="muted small">${esc(s.symbol)} · ${esc(s.exchange)}${s.sector?' · '+esc(s.sector):''}${s.industry?' / '+esc(s.industry):''}</div></div>
       <div><div class="qprice" id="px">${money(s.price,s.currency)}</div>
         <div style="text-align:right"><span id="chg" class="chg ${s.changePct>=0?'pos':'neg'}">${pct(s.changePct,2)} today</span></div>
-        <div class="live" id="tsWrap"><i></i><span id="ts">Live price, refreshes every 15s</span></div></div>
+        <div class="live" id="tsWrap"><i></i><span id="ts">Live price, refreshes every 15s</span></div>
+        <div style="text-align:right;margin-top:6px"><button id="addW">＋ Watchlist</button></div></div>
     </div>
     <div class="dgrid">
       <div>
@@ -282,6 +388,8 @@ function renderStock(s){
     if(nd)nd.style.transform=`rotate(${-90+s.score*1.8}deg)`;
   }));
   $('reload').onclick=e=>{e.preventDefault();openStock(s.symbol,true)};
+  $('addW').onclick=()=>{wQuickAdd(s.symbol,s.name);$('addW').textContent='✓ In watchlist'};
+  if(wList.some(w=>w.symbol===s.symbol))$('addW').textContent='✓ In watchlist';
   livePrice();
 }
 function priceChart(h){
@@ -390,6 +498,321 @@ $('csv').onclick=()=>{
   const csv=[cols.join(','),...filtered().map(r=>cols.map(c=>q(ok(r[c])&&typeof r[c]==='number'?+r[c].toFixed(2):r[c])).join(','))].join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`stockpulse-${$('uni').value}-${new Date().toISOString().slice(0,10)}.csv`;a.click();
 };
+
+/* ---------------- buy picks ---------------- */
+let picksInit=false,pRows=new Map(),pEs=null,pPrevSig=new Map(),pDrawQ=false;
+async function initPicks(){
+  picksInit=true;
+  const u=await api('/api/universes').catch(()=>[]);
+  $('pUni').innerHTML=u.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('')+'<option value="custom">My own list</option>';
+  $('pUni').onchange=()=>{$('pCustomBox').hidden=$('pUni').value!=='custom'};
+  setInterval(pRefresh,15000);
+  pDraw();
+}
+$('pMin').addEventListener('input',()=>{$('pMinV').textContent=$('pMin').value;pDraw()});
+['pPE','pTrend','pSig'].forEach(id=>$(id).addEventListener('input',pDraw));
+$('pAlert').addEventListener('change',async()=>{
+  if($('pAlert').checked&&'Notification' in window&&Notification.permission==='default'){
+    const p=await Notification.requestPermission();if(p!=='granted')$('pAlert').checked=false;
+  }
+});
+
+// Timing: is the live price at a sensible entry point relative to its trend?
+function timing(r){
+  const p=r.price,a=r.ma50,b=r.ma200;
+  if(!ok(p)||!ok(a))return{sig:'Watch',t:40,why:'Not enough price history'};
+  const ext=(p/a-1)*100;
+  if(ok(b)&&p<b)return{sig:'Watch',t:20,why:'Price below its 200-day average — trend not confirmed',ext};
+  if(ext>15)return{sig:'Wait for dip',t:35,why:`${ext.toFixed(0)}% above 50-day average — stretched, better entry likely on a pullback`,ext};
+  if(ext<-5)return{sig:'Watch',t:45,why:'Slipped below 50-day average — wait for it to recover',ext};
+  return{sig:'Buy zone',t:Math.max(60,Math.round(100-Math.abs(ext-3)*4)),why:`Trading ${ext>=0?ext.toFixed(1)+'% above':Math.abs(ext).toFixed(1)+'% below'} its 50-day average in an uptrend`,ext};
+}
+function levels(r){
+  const p=r.price,a=r.ma50;
+  if(!ok(p)||!ok(a))return{};
+  const entryLo=a*0.99,entryHi=a*1.08;
+  const stop=Math.max(a*0.95,p*0.88);            // just under the 50-day avg, never more than 12% risk
+  const target=ok(r.target)&&r.target>p?r.target:null;
+  const rr=target&&p>stop?(target-p)/(p-stop):null;
+  return{entryLo,entryHi,stop,risk:(1-stop/p)*100,target,rr};
+}
+function candidates(){
+  const min=+$('pMin').value,maxPE=+$('pPE').value||1e9,trend=$('pTrend').checked,sf=$('pSig').value;
+  return[...pRows.values()].filter(r=>{
+    if(r.score==null||r.score<min||(r.confidence??0)<60)return false;
+    if(ok(r.pe)&&r.pe>maxPE)return false;
+    if(r.f&&ok(r.f.profit)&&r.f.profit<45)return false;
+    if(r.f&&ok(r.f.debt)&&r.f.debt<40)return false;
+    if(trend&&!(ok(r.ma200)&&r.price>r.ma200))return false;
+    return true;
+  }).map(r=>{const tm=timing(r);return{...r,tm,lv:levels(r),buy:Math.round(r.score*0.7+tm.t*0.3)}})
+    .filter(r=>!sf||r.tm.sig===sf)
+    .sort((a,b)=>(b.tm.sig==='Buy zone')-(a.tm.sig==='Buy zone')||b.buy-a.buy);
+}
+function chartLink(r){
+  const [base,suf]=r.symbol.split('.');
+  const ex=suf==='NS'?'NSE:':suf==='BO'?'BSE:':'';
+  return'https://www.tradingview.com/chart/?symbol='+encodeURIComponent(ex+base);
+}
+function pDraw(){if(pDrawQ)return;pDrawQ=true;requestAnimationFrame(()=>{pDrawQ=false;pPaint()})}
+function pPaint(){
+  const list=candidates(),shown=list.slice(0,120),box=$('pCards');
+  const nBuy=list.filter(r=>r.tm.sig==='Buy zone').length;
+  $('pCount').textContent=pRows.size?`${list.length} strong stocks · ${nBuy} in buy zone (of ${pRows.size} scanned)`:'';
+  if(!list.length){box.innerHTML=`<div class="panel empty" style="grid-column:1/-1">${pRows.size?'No stock passes the filters right now. Lower the min score or turn off the uptrend filter.':'Pick a market and press “Find buy picks”.'}</div>`;return}
+  box.innerHTML=shown.map(r=>{
+    const c=r.tm.sig==='Buy zone'?'buy':r.tm.sig==='Wait for dip'?'wait':'watch',L=r.lv,cur=r.currency;
+    return`<div class="card" data-s="${esc(r.symbol)}">
+      <div class="top"><div><div class="sym">${esc(r.symbol)}</div><div class="nm" title="${esc(r.name)}">${esc(r.name)}</div></div>
+        <div><div class="px">${money(r.price,cur)}</div><div class="small ${r.changePct>=0?'pos':'neg'}" style="text-align:right">${pct(r.changePct,2)}</div></div></div>
+      <div><span class="sig ${c}">${r.tm.sig}</span> <span class="pill" style="background:${tone(r.buy)};margin-left:6px" title="Buy score = 70% fundamentals + 30% timing">${r.buy}</span> <span class="small muted">${esc(r.label)} fundamentals</span></div>
+      <div class="lv">
+        <span>Entry zone</span><b>${ok(L.entryLo)?money(L.entryLo,cur)+' – '+money(L.entryHi,cur):'–'}</b>
+        <span>Stop-loss</span><b>${ok(L.stop)?money(L.stop,cur)+' <span class="small neg">(−'+L.risk.toFixed(1)+'%)</span>':'–'}</b>
+        <span>Analyst target</span><b>${L.target?money(L.target,cur)+' <span class="small pos">'+pct(r.upside,0)+'</span>':'–'}</b>
+        <span>Reward : risk</span><b>${ok(L.rr)?L.rr.toFixed(1)+' : 1':'–'}</b>
+        <span>P/E · 1Y</span><b>${n2(r.pe)} · ${pct(r.r1y,0)}</b>
+      </div>
+      <div class="why">${esc(r.tm.why)}.</div>
+      <div class="acts"><button data-open="${esc(r.symbol)}">Full analysis</button><button data-watch="${esc(r.symbol)}" data-name="${esc(r.name)}">＋ Watchlist</button><a href="${chartLink(r)}" target="_blank" rel="noopener">Live chart ↗</a></div>
+    </div>`}).join('');
+  box.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{location.hash='stock='+encodeURIComponent(b.dataset.open)});
+  box.querySelectorAll('[data-watch]').forEach(b=>b.onclick=()=>{wQuickAdd(b.dataset.watch,b.dataset.name);b.textContent='✓ Added'});
+}
+function checkAlerts(){
+  candidates().forEach(r=>{
+    const prev=pPrevSig.get(r.symbol);pPrevSig.set(r.symbol,r.tm.sig);
+    if(prev&&prev!=='Buy zone'&&r.tm.sig==='Buy zone'){
+      document.querySelector(`.card[data-s="${CSS.escape(r.symbol)}"]`)?.classList.add('flash');
+      if($('pAlert').checked&&'Notification' in window&&Notification.permission==='granted')
+        new Notification(`${r.symbol} entered the buy zone`,{body:`${r.name} at ${money(r.price,r.currency)} · score ${r.score}`});
+    }
+  });
+}
+$('pStart').onclick=()=>{
+  if(pEs)pEs.close();
+  const u=$('pUni').value;
+  if(u==='custom'&&!$('pCustom').value.trim()){$('pText').innerHTML='<span class="err">Add at least one symbol.</span>';return}
+  pRows.clear();pPrevSig.clear();pDraw();
+  pEs=new EventSource(`/api/scan?universe=${u}&custom=${encodeURIComponent($('pCustom').value)}`);
+  $('pStart').disabled=true;$('pStop').disabled=false;$('pText').textContent='Loading stock list…';
+  pEs.addEventListener('row',e=>{const r=JSON.parse(e.data);pRows.set(r.symbol,r);pDraw()});
+  pEs.addEventListener('progress',e=>{const d=JSON.parse(e.data);$('pBar').style.width=(d.done/d.total*100)+'%';$('pText').textContent=`Checked ${d.done.toLocaleString()} of ${d.total.toLocaleString()} stocks…`});
+  pEs.addEventListener('done',()=>{pFinish();$('pText').textContent='Scan complete. Live prices and signals now refresh every 15 seconds.';candidates().forEach(r=>pPrevSig.set(r.symbol,r.tm.sig))});
+  pEs.addEventListener('fatal',e=>{pFinish();$('pText').innerHTML=`<span class="err">${esc(JSON.parse(e.data).error)}</span>`});
+  pEs.onerror=()=>{if(pEs&&pEs.readyState===2)pFinish()};
+};
+$('pStop').onclick=()=>{pFinish();$('pText').textContent+=' Stopped.'};
+function pFinish(){if(pEs){pEs.close();pEs=null}$('pStart').disabled=false;$('pStop').disabled=true}
+async function pRefresh(){
+  if(document.hidden||$('viewPicks').hidden||!pRows.size)return;
+  const syms=candidates().slice(0,100).map(r=>r.symbol);if(!syms.length)return;
+  try{
+    const q=await api('/api/quotes?symbols='+encodeURIComponent(syms.join(',')));
+    let state='';
+    q.forEach(x=>{const r=pRows.get(x.symbol);if(r&&ok(x.price)){r.price=x.price;r.changePct=x.changePct}state=x.marketState||state});
+    pPaint();checkAlerts();
+    $('pLive').textContent=(state==='REGULAR'?'● Live':'Market closed')+' · updated '+new Date().toLocaleTimeString();
+  }catch(e){}
+}
+
+/* ---------------- watchlist ---------------- */
+const TZ='Asia/Kolkata';
+const ls={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+let wList=ls.get('sp-watchlist',[]),wLog=ls.get('sp-wlog',[]),wLast=ls.get('sp-wlast',{}),wData=new Map(),wEdit=null,wPick=null;
+const istTime=t=>new Date(t).toLocaleString('en-IN',{timeZone:TZ,day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+const istDay=t=>new Date(t).toLocaleDateString('en-CA',{timeZone:TZ});
+const wSave=()=>{ls.set('sp-watchlist',wList);ls.set('sp-wlog',wLog.slice(0,100));ls.set('sp-wlast',wLast)};
+
+// NSE session in IST (Mon–Fri 9:15–15:30; exchange holidays not included)
+function nse(){
+  const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:TZ,weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  const m=(+p.hour%24)*60+ +p.minute,wd=!['Sat','Sun'].includes(p.weekday);
+  if(wd&&m>=555&&m<930)return{open:true,txt:'NSE open · closes 3:30 PM'};
+  if(wd&&m>=540&&m<555)return{open:false,txt:'Pre-open · trading starts 9:15 AM'};
+  if(wd&&m<540)return{open:false,txt:'NSE closed · opens 9:15 AM'};
+  return{open:false,txt:p.weekday==='Fri'||!wd?'NSE closed · opens Monday 9:15 AM':'NSE closed · opens tomorrow 9:15 AM'};
+}
+function tick(){
+  $('istClock').textContent=new Date().toLocaleString('en-IN',{timeZone:TZ,weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+  const n=nse();$('nseState').textContent=n.txt;$('nseState').className='mkt'+(n.open?' open':'');
+}
+setInterval(tick,1000);tick();
+
+function rsi(c,n=14){
+  if(c.length<n+1)return null;let g=0,l=0;
+  for(let i=1;i<=n;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d}g/=n;l/=n;
+  for(let i=n+1;i<c.length;i++){const d=c[i]-c[i-1];g=(g*(n-1)+Math.max(d,0))/n;l=(l*(n-1)+Math.max(-d,0))/n}
+  return l===0?100:100-100/(1+g/l);
+}
+function liveRsi(d){
+  if(!d.recent||!d.recent.length)return null;
+  const c=d.recent.map(x=>x[1]);
+  if(ok(d.price)){if(istDay(d.recent.at(-1)[0])===istDay(Date.now()))c[c.length-1]=d.price;else c.push(d.price)}
+  return rsi(c);
+}
+
+// The core decision: what to do with this stock right now
+function wSignal(it,d){
+  const p=d.price,m=d.metrics||{},a=m.ma50,b=m.ma200,sc=d.score,cur=d.currency,rs=liveRsi(d);
+  const ext=ok(a)?(p/a-1)*100:null,down=ok(a)&&ok(b)&&p<b&&a<b;
+  const aTgt=d.analyst&&ok(d.analyst.target)?d.analyst.target:null;
+  const out={rs,ext};
+  if(!ok(p))return{...out,sig:'LOADING',cls:'wait',why:'Waiting for price'};
+  if(it.own&&ok(it.buy)){
+    const buy=it.buy,pl=(p/buy-1)*100;
+    let stop=ok(it.stop)?it.stop:buy*0.9;
+    if(!ok(it.stop)){ if(pl>10)stop=Math.max(stop,buy); if(ok(a)&&a*0.95>stop&&p>a)stop=a*0.95; }  // trailing stop
+    const tgt=ok(it.target)?it.target:aTgt&&aTgt>buy?aTgt:buy*1.25;
+    Object.assign(out,{stop,tgt,pl});
+    if(p<=stop)return{...out,sig:'SELL',cls:'sell',why:`Price hit your stop-loss ${money(stop,cur)}. Exit to protect capital.`};
+    if(down)return{...out,sig:'SELL',cls:'sell',why:'Trend broken: price below its 50- and 200-day averages.'};
+    if(ok(sc)&&sc<40)return{...out,sig:'SELL',cls:'sell',why:`Fundamentals have weakened (score ${sc}/100).`};
+    if(p>=tgt)return{...out,sig:'BOOK PROFIT',cls:'profit',why:`Target ${money(tgt,cur)} reached (${pct(pl)}). Sell, or raise stop-loss to lock in gains.`};
+    if(ok(rs)&&rs>75&&pl>15)return{...out,sig:'BOOK PARTIAL',cls:'profit',why:`Overbought (RSI ${rs.toFixed(0)}) with ${pct(pl)} gain. Consider selling part.`};
+    if(ok(sc)&&sc>=60&&ok(ext)&&ext>-3&&ext<5&&!(ok(b)&&p<b))return{...out,sig:'HOLD / ADD',cls:'buy',why:'Strong stock near its 50-day average. Hold; adding more is reasonable.'};
+    return{...out,sig:'HOLD',cls:'hold',why:`Trend and fundamentals intact. Sell if price falls to ${money(stop,cur)}.`};
+  }
+  const zoneLo=ok(a)?a*0.97:null,zoneHi=ok(a)?a*1.05:null;
+  const stop=ok(it.stop)?it.stop:ok(a)?Math.max(a*0.95,p*0.9):p*0.9;
+  const tgt=ok(it.target)?it.target:aTgt&&aTgt>p?aTgt:null;
+  Object.assign(out,{zoneLo,zoneHi,stop,tgt});
+  if(!ok(sc))return{...out,sig:'WAIT',cls:'wait',why:'Not enough data to judge.'};
+  if(sc<45)return{...out,sig:'AVOID',cls:'avoid',why:`Weak fundamentals (score ${sc}/100).`};
+  if(down)return{...out,sig:'AVOID',cls:'avoid',why:'In a downtrend (below 50- and 200-day averages).'};
+  if(sc>=60&&ok(rs)&&rs<35&&(!ok(b)||p>=b*0.97))return{...out,sig:'BUY ON DIP',cls:'buy',why:`Strong stock oversold (RSI ${rs.toFixed(0)}). Good dip-buying chance.`};
+  if(sc>=60&&(!ok(b)||p>b)&&ok(ext)&&ext>=-3&&ext<=8&&(!ok(rs)||rs<68))return{...out,sig:'BUY',cls:'buy',why:`In the buy zone near its 50-day average. Suggested stop-loss ${money(stop,cur)}.`};
+  if((ok(ext)&&ext>12)||(ok(rs)&&rs>70))return{...out,sig:'WAIT',cls:'wait',why:`Stretched${ok(rs)?' (RSI '+rs.toFixed(0)+')':''}. Wait for a pullback to ${ok(zoneLo)?money(zoneLo,cur)+'–'+money(zoneHi,cur):'its average'}.`};
+  return{...out,sig:'WAIT',cls:'wait',why:ok(zoneLo)?`Not at a good entry yet. Buy zone ${money(zoneLo,cur)}–${money(zoneHi,cur)}.`:'Not at a good entry yet.'};
+}
+
+async function wLoad(sym,force){
+  try{const d=await api('/api/stock/'+encodeURIComponent(sym)+(force?'?refresh=1':''));wData.set(sym,d);wRender();}
+  catch(e){wData.set(sym,{error:e.message});wRender()}
+}
+async function wLoadAll(force){for(const w of wList){await wLoad(w.symbol,force)}}
+async function wPrices(){
+  if(!wList.length)return;   // keeps running in background so alerts still fire
+  const syms=wList.map(w=>w.symbol);
+  try{
+    const q=await api('/api/quotes?symbols='+encodeURIComponent(syms.join(',')));
+    q.forEach(x=>{const d=wData.get(x.symbol);if(d&&!d.error&&ok(x.price)){d.price=x.price;d.changePct=x.changePct;d.qtime=x.time}});
+    wRender();
+  }catch(e){}
+}
+function wCheck(it,d,s){
+  const prev=wLast[it.symbol];
+  if(s.sig==='LOADING'||prev===s.sig)return;
+  wLast[it.symbol]=s.sig;
+  if(prev){
+    wLog.unshift({t:Date.now(),sym:it.symbol,from:prev,to:s.sig,price:d.price,cur:d.currency,why:s.why});
+    if($('wAlert').checked&&'Notification' in window&&Notification.permission==='granted')
+      new Notification(`${it.symbol}: ${s.sig}`,{body:`${money(d.price,d.currency)} · ${s.why}`});
+  }
+  wSave();
+}
+function wRender(){
+  const box=$('wCards');
+  if(!wList.length){box.innerHTML='<div class="panel empty" style="grid-column:1/-1">Your watchlist is empty. Add a stock above, or use “＋ Watchlist” from any stock page or Buy pick.</div>';$('wSum').hidden=true;wPaintLog();return}
+  let inv=0,val=0,day=0;
+  box.innerHTML=wList.map(it=>{
+    const d=wData.get(it.symbol);
+    if(!d)return`<div class="card"><div class="sym">${esc(it.symbol)}</div><div class="muted small">Loading analysis…</div></div>`;
+    if(d.error)return`<div class="card"><div class="sym">${esc(it.symbol)}</div><div class="err small">${esc(d.error)}</div><div class="acts"><button data-retry="${esc(it.symbol)}">Retry</button><button data-del="${esc(it.symbol)}">Remove</button></div></div>`;
+    const s=wSignal(it,d),cur=d.currency;wCheck(it,d,s);
+    const owned=it.own&&ok(it.buy)&&ok(it.qty)&&it.qty>0;
+    if(owned){inv+=it.buy*it.qty;val+=d.price*it.qty;if(ok(d.changePct))day+=d.price*it.qty*(d.changePct/(100+d.changePct))}
+    const days=it.own&&it.date?Math.max(0,Math.round((Date.now()-new Date(it.date))/864e5)):null;
+    return`<div class="card">
+      <div class="top"><div><div class="sym">${esc(it.symbol)}</div><div class="nm" title="${esc(d.name)}">${esc(d.name)}</div></div>
+        <div><div class="px">${money(d.price,cur)}</div><div class="small ${d.changePct>=0?'pos':'neg'}" style="text-align:right">${pct(d.changePct,2)}</div></div></div>
+      <div><span class="wsig ${s.cls}">${s.sig}</span> <span class="small muted">score ${d.score??'–'} · ${esc(d.label||'')}</span></div>
+      <div class="why" style="color:var(--ink);font-size:13px">${esc(s.why)}</div>
+      <div class="lv">
+        ${owned?`<span>Bought</span><b>${it.qty} @ ${money(it.buy,cur)}</b>
+        <span>P&amp;L</span><b class="${s.pl>=0?'pos':'neg'}">${money((d.price-it.buy)*it.qty,cur)} (${pct(s.pl)})</b>`:''}
+        ${!it.own&&ok(s.zoneLo)?`<span>Buy zone</span><b>${money(s.zoneLo,cur)} – ${money(s.zoneHi,cur)}</b>`:''}
+        <span>${it.own?'Sell below (stop)':'Stop-loss if bought'}</span><b>${ok(s.stop)?money(s.stop,cur):'–'}</b>
+        <span>${it.own?'Sell at (target)':'Target'}</span><b>${ok(s.tgt)?money(s.tgt,cur):'–'}</b>
+        <span>RSI (14)</span><b>${ok(s.rs)?s.rs.toFixed(0):'–'}</b>
+        <span>52-week range</span><b>${ok(d.low52)?money(d.low52,cur,true)+' – '+money(d.high52,cur,true):'–'}</b>
+        ${days!=null?`<span>Held</span><b>${days} days</b>`:''}
+      </div>
+      <div class="small muted">Price at ${d.qtime?istTime(d.qtime):istTime(d.updated)} IST</div>
+      <div class="acts"><button data-open="${esc(it.symbol)}">Full analysis</button><button data-edit="${esc(it.symbol)}">Edit</button><button data-del="${esc(it.symbol)}">Remove</button></div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{location.hash='stock='+encodeURIComponent(b.dataset.open)});
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Remove '+b.dataset.del+' from watchlist?')){wList=wList.filter(w=>w.symbol!==b.dataset.del);delete wLast[b.dataset.del];wData.delete(b.dataset.del);wSave();wRender()}});
+  box.querySelectorAll('[data-retry]').forEach(b=>b.onclick=()=>{wData.delete(b.dataset.retry);wRender();wLoad(b.dataset.retry)});
+  box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>wStartEdit(b.dataset.edit));
+  const sum=$('wSum');
+  if(inv>0){const cur=(wData.get(wList.find(w=>w.own)?.symbol)||{}).currency;
+    sum.hidden=false;sum.innerHTML=`<div><span>Invested</span><b>${money(inv,cur)}</b></div><div><span>Current value</span><b>${money(val,cur)}</b></div>
+      <div><span>Total P&amp;L</span><b class="${val>=inv?'pos':'neg'}">${money(val-inv,cur)} (${pct((val/inv-1)*100)})</b></div><div><span>Today</span><b class="${day>=0?'pos':'neg'}">${money(day,cur)}</b></div>`;
+  }else sum.hidden=true;
+  wPaintLog();
+}
+function wPaintLog(){
+  $('wLog').innerHTML=wLog.length?wLog.slice(0,30).map(l=>`<li><time>${istTime(l.t)}</time><b>${esc(l.sym)}</b><span>${esc(l.from)} → <b>${esc(l.to)}</b> at ${money(l.price,l.cur)}</span><span class="muted">${esc(l.why)}</span></li>`).join('')
+    :'<li class="muted">Signal changes will be logged here with the IST time they happened.</li>';
+}
+
+// add / edit form
+$('wOwn').onchange=()=>{$('wOwnBox').hidden=!$('wOwn').checked};
+let wsT,wsItems=[];
+$('wq').addEventListener('input',()=>{wPick=null;clearTimeout(wsT);wsT=setTimeout(async()=>{
+  const q=$('wq').value.trim();if(!q){$('wsugg').hidden=true;return}
+  try{wsItems=await api('/api/search?q='+encodeURIComponent(q))}catch{wsItems=[]}
+  $('wsugg').innerHTML=wsItems.map(s=>`<li data-s="${esc(s.symbol)}" data-n="${esc(s.name)}"><span><b>${esc(s.symbol)}</b> ${esc(s.name)}</span><span class="muted small">${esc(s.exchange)}</span></li>`).join('')||'<li class="muted">No match — Add will try it as a symbol</li>';
+  $('wsugg').hidden=false;
+  $('wsugg').querySelectorAll('li[data-s]').forEach(li=>li.onclick=()=>{wPick={symbol:li.dataset.s,name:li.dataset.n};$('wq').value=li.dataset.s+' — '+li.dataset.n;$('wsugg').hidden=true});
+},250)});
+document.addEventListener('click',e=>{if(!e.target.closest('.wform .search'))$('wsugg').hidden=true});
+const numv=id=>{const v=parseFloat($(id).value);return isFinite(v)&&v>0?v:null};
+function wResetForm(){wEdit=null;wPick=null;['wq','wBuy','wQty','wDate','wTgt','wStop'].forEach(i=>$(i).value='');$('wOwn').checked=false;$('wOwnBox').hidden=true;$('wq').disabled=false;$('wAdd').textContent='Add';$('wCancel').hidden=true}
+$('wCancel').onclick=wResetForm;
+$('wAdd').onclick=()=>{
+  const sym=(wEdit||wPick?.symbol||$('wq').value.split(/\s/)[0]||'').trim().toUpperCase();
+  if(!sym){$('wMsg').innerHTML='<span class="err">Pick a stock first.</span>';return}
+  const own=$('wOwn').checked,buy=numv('wBuy'),qty=numv('wQty');
+  if(own&&(!buy||!qty)){$('wMsg').innerHTML='<span class="err">Enter buy price and quantity for a stock you own.</span>';return}
+  const item={symbol:sym,name:wPick?.name||wList.find(w=>w.symbol===sym)?.name||sym,own,buy:own?buy:null,qty:own?qty:null,date:own?$('wDate').value||null:null,target:numv('wTgt'),stop:numv('wStop'),added:Date.now()};
+  const i=wList.findIndex(w=>w.symbol===sym);
+  if(i>-1){item.added=wList[i].added;wList[i]=item}else wList.push(item);
+  delete wLast[sym];wSave();
+  $('wMsg').textContent=(i>-1?'Updated ':'Added ')+sym+'.';
+  wResetForm();wRender();if(!wData.has(sym))wLoad(sym);
+};
+function wStartEdit(sym){
+  const it=wList.find(w=>w.symbol===sym);if(!it)return;
+  wEdit=sym;$('wq').value=sym;$('wq').disabled=true;$('wOwn').checked=!!it.own;$('wOwnBox').hidden=!it.own;
+  $('wBuy').value=it.buy??'';$('wQty').value=it.qty??'';$('wDate').value=it.date??'';$('wTgt').value=it.target??'';$('wStop').value=it.stop??'';
+  $('wAdd').textContent='Save';$('wCancel').hidden=false;$('wq').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function wQuickAdd(sym,name){
+  if(!wList.some(w=>w.symbol===sym)){wList.push({symbol:sym,name:name||sym,own:false,added:Date.now()});wSave();wLoad(sym)}
+}
+$('wAlert').checked=ls.get('sp-walert',false);
+$('wAlert').onchange=async()=>{
+  if($('wAlert').checked&&'Notification' in window&&Notification.permission==='default'){if(await Notification.requestPermission()!=='granted')$('wAlert').checked=false}
+  ls.set('sp-walert',$('wAlert').checked);
+};
+$('wExport').onclick=()=>{
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({watchlist:wList,log:wLog},null,2)],{type:'application/json'}));
+  a.download='stockpulse-watchlist.json';a.click();
+};
+$('wImportBtn').onclick=()=>$('wImport').click();
+$('wImport').onchange=async()=>{
+  try{const j=JSON.parse(await $('wImport').files[0].text());if(!Array.isArray(j.watchlist))throw 0;
+    wList=j.watchlist;wLog=j.log||wLog;wSave();wRender();wLoadAll();$('wMsg').textContent='Watchlist imported.'}
+  catch{$('wMsg').innerHTML='<span class="err">That file is not a StockPulse watchlist export.</span>'}
+  $('wImport').value='';
+};
+
+wLoadAll();
+setInterval(wPrices,15000);
+setInterval(()=>wLoadAll(true),30*60*1000);   // refresh fundamentals & moving averages every 30 min
 
 route();
 </script>

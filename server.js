@@ -97,6 +97,9 @@ async function getStock(symbol, { force = false } = {}) {
     marketCap: q.marketCap ?? s.price?.marketCap ?? null,
     annual: annual.map((r) => ({ year: r.date.getFullYear(), revenue: r.totalRevenue ?? null, profit: r.netIncome ?? null, debt: r.totalDebt ?? null })),
     history: quotes.filter((_, i) => i % step === 0 || i === quotes.length - 1).map((x) => [+toDate(x.date), +x.close.toFixed(2)]),
+    // last 40 daily closes (for live RSI) and 52-week range, used by the Watchlist tab
+    recent: quotes.slice(-40).map((x) => [+toDate(x.date), +x.close.toFixed(2)]),
+    high52: closes.length ? Math.max(...closes) : null, low52: closes.length ? Math.min(...closes) : null,
     analyst: {
       rating: fd.recommendationKey && fd.recommendationKey !== 'none' ? fd.recommendationKey : null,
       target: fd.targetMeanPrice ?? null, low: fd.targetLowPrice ?? null, high: fd.targetHighPrice ?? null,
@@ -113,7 +116,11 @@ const row = (s) => ({
   symbol: s.symbol, name: s.name, sector: s.sector, currency: s.currency, price: s.price, changePct: s.changePct,
   score: s.score, label: s.label, confidence: s.confidence,
   pe: s.metrics?.pe ?? null, de: s.metrics?.de ?? null, revCagr: s.metrics?.revCagr ?? null, r1y: s.metrics?.r1y ?? null,
-  upside: s.analyst?.target && s.price ? (s.analyst.target / s.price - 1) * 100 : null, marketCap: s.marketCap
+  upside: s.analyst?.target && s.price ? (s.analyst.target / s.price - 1) * 100 : null, marketCap: s.marketCap,
+  // extra fields used by the Buy picks tab
+  exchange: s.exchange, ma50: s.metrics?.ma50 ?? null, ma200: s.metrics?.ma200 ?? null,
+  target: s.analyst?.target ?? null, rating: s.analyst?.rating ?? null, isFin: !!s.isFin,
+  f: Object.fromEntries((s.factors || []).map((x) => [x.key, x.score]))
 });
 
 // ---------- API ----------
